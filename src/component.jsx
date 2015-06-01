@@ -54,6 +54,7 @@ var ReactComponent = Ember.Component.extend({
     );
 
     this._reactComponent = React.render(descriptor, el);
+    this._scheduledProps = null;
   },
 
   didInsertElement: function() {
@@ -69,6 +70,18 @@ var ReactComponent = Ember.Component.extend({
     return this._props && this._props[key];
   },
 
+  scheduleProps: function(props) {
+    this._scheduledProps = Em.merge(this._scheduledProps || {}, props);
+    Em.run.scheduleOnce('render', this, this.flushScheduledProps);
+  },
+
+  flushScheduledProps: function() {
+    if (this._reactComponent && this._scheduledProps) {
+      this._reactComponent.setProps(this._scheduledProps);
+      this._scheduledProps = null;
+    }
+  },
+
   setUnknownProperty: function(key, value) {
     if(!this._props) {
       this._props = {};
@@ -76,13 +89,11 @@ var ReactComponent = Ember.Component.extend({
 
     var that = this;
     var set = function(key, value) {
-      var reactComponent = that._reactComponent;
       that._props[key] = value;
-      if(reactComponent) {
-        var props = {};
-        props[key] = value;
-        reactComponent.setProps(props);
-      }
+
+      var props = {};
+      props[key] = value;
+      that.scheduleProps(props);
     };
 
     if (key.match(/Binding$/)) {
